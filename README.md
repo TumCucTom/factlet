@@ -4,13 +4,15 @@ A minimalistic iOS app that displays general knowledge factlets on your home scr
 
 ## Features
 
+- **Onboarding Flow** - Guided setup on first launch to customize your experience
 - **Notifications** - Receive factlets as push notifications at your chosen frequency
 - **Transparent Widget** - Widgets have transparent backgrounds to blend with your wallpaper
 - **Light/Dark Text** - Choose white or black text to match your wallpaper
 - **Topic Filtering** - Filter factlets by category (Science, History, Nature, etc.)
+- **Difficulty Levels** - Three levels (1-3) for each category to match your knowledge level
 - **Minimalistic Design** - Clean, elegant UI with Times New Roman typography
 - **Customizable Refresh** - Choose how often factlets change: 15 minutes, 30 minutes, hourly, or daily
-- **50+ Curated Factlets** - General knowledge facts covering 8 categories
+- **233 Curated Factlets** - General knowledge facts covering 8 categories
 
 ## Requirements
 
@@ -32,6 +34,17 @@ The app uses an App Group (`group.com.factlet.app`) to share data between the ma
 
 1. Enable App Groups capability for both targets
 2. Use the same App Group identifier in both entitlements files
+
+## Onboarding
+
+On first launch, Factlet guides you through a 4-step setup process:
+
+1. **Choose Topics** - Select which categories interest you (Science, History, Nature, etc.)
+2. **Select Difficulty Levels** - Choose Level 1 (basic), Level 2 (intermediate), or Level 3 (advanced) for your selected topics
+3. **Widget Refresh** - Set how often the widget updates (15 minutes, 30 minutes, hourly, or daily)
+4. **Notifications** - Choose if and how often you'd like to receive factlet notifications
+
+All settings can be changed later in the app's Settings screen.
 
 ## Notifications
 

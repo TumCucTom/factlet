@@ -102,6 +102,7 @@ class FactletManager: ObservableObject {
     private let selectedLevelsKey = "selectedLevels"
     private let notificationFrequencyKey = "notificationFrequency"
     private let notificationsEnabledKey = "notificationsEnabled"
+    private let onboardingCompletedKey = "onboardingCompleted"
     
     private var userDefaults: UserDefaults? {
         UserDefaults(suiteName: suiteName)
@@ -114,6 +115,7 @@ class FactletManager: ObservableObject {
     @Published var selectedLevels: Set<FactletLevel>
     @Published var notificationFrequency: NotificationFrequency
     @Published var notificationsEnabled: Bool
+    @Published var onboardingCompleted: Bool
     
     private init() {
         let defaults = UserDefaults(suiteName: "group.com.factlet.app")
@@ -160,6 +162,9 @@ class FactletManager: ObservableObject {
         
         // Load notifications enabled state
         self.notificationsEnabled = defaults?.bool(forKey: "notificationsEnabled") ?? false
+        
+        // Load onboarding completion
+        self.onboardingCompleted = defaults?.bool(forKey: onboardingCompletedKey) ?? false
         
         // Load saved factlet or get a new one
         if let data = defaults?.data(forKey: "currentFactlet"),
@@ -379,6 +384,13 @@ class FactletManager: ObservableObject {
     func handleNotificationReceived() {
         // When notification is tapped, refresh the factlet and widget
         refreshFactlet()
+    }
+    
+    func completeOnboarding() {
+        guard let userDefaults = userDefaults else { return }
+        onboardingCompleted = true
+        userDefaults.set(true, forKey: onboardingCompletedKey)
+        save()
     }
     
     // MARK: - Static methods for widget use

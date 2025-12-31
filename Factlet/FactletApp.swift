@@ -11,10 +11,15 @@ import UserNotifications
 @main
 struct FactletApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var manager = FactletManager.shared
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if manager.onboardingCompleted {
+                ContentView()
+            } else {
+                OnboardingView()
+            }
         }
     }
 }
