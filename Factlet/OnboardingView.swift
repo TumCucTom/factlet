@@ -11,7 +11,7 @@ struct OnboardingView: View {
     @StateObject private var manager = FactletManager.shared
     @State private var currentStep = 0
     @State private var selectedCategories: Set<FactletCategory> = []
-    @State private var selectedLevels: Set<FactletLevel> = Set(FactletLevel.allCases)
+    @State private var categoryLevels: [String: Set<FactletLevel>] = [:]
     @State private var refreshInterval: RefreshInterval = .hourly
     @State private var notificationFrequency: NotificationFrequency = .off
     @State private var showNotificationPermission = false
@@ -40,15 +40,15 @@ struct OnboardingView: View {
                 Group {
                     switch currentStep {
                     case 0:
-                        CategoriesOnboardingStep(selectedCategories: $selectedCategories)
+                        CategoriesOnboardingStep(selectedCategories: $selectedCategories, categoryLevels: $categoryLevels)
                     case 1:
-                        LevelsOnboardingStep(selectedCategories: selectedCategories, selectedLevels: $selectedLevels)
+                        LevelsOnboardingStep(selectedCategories: selectedCategories, categoryLevels: $categoryLevels)
                     case 2:
                         RefreshIntervalOnboardingStep(refreshInterval: $refreshInterval)
                     case 3:
                         NotificationsOnboardingStep(notificationFrequency: $notificationFrequency, showPermission: $showNotificationPermission)
                     default:
-                        CategoriesOnboardingStep(selectedCategories: $selectedCategories)
+                        CategoriesOnboardingStep(selectedCategories: $selectedCategories, categoryLevels: $categoryLevels)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -86,16 +86,24 @@ struct OnboardingView: View {
                     }) {
                         Text(currentStep < totalSteps - 1 ? "Next" : "Get Started")
                             .font(.custom("TimesNewRomanPSMT", size: 16))
-                            .foregroundColor(.black.opacity(0.85))
+                            .foregroundColor(currentStep < totalSteps - 1 ? .black.opacity(0.85) : .black.opacity(0.9))
                             .padding(.vertical, 14)
                             .padding(.horizontal, 32)
-                            .background(Color.black.opacity(0.1))
+                            .background(
+                                currentStep < totalSteps - 1 
+                                    ? Color.black.opacity(0.1)
+                                    : Color.black.opacity(0.15)
+                            )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 0)
-                                    .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                                    .stroke(
+                                        currentStep < totalSteps - 1 
+                                            ? Color.black.opacity(0.2)
+                                            : Color.black.opacity(0.3),
+                                        lineWidth: currentStep < totalSteps - 1 ? 1 : 1.5
+                                    )
                             )
                     }
-                    .disabled(currentStep == 1 && selectedLevels.isEmpty)
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 50)
@@ -111,11 +119,18 @@ struct OnboardingView: View {
             manager.selectedCategories = selectedCategories
         }
         
-        // Apply selected levels (ensure at least one is selected)
-        if selectedLevels.isEmpty {
-            manager.selectedLevels = [.level1]
+        // Apply category levels
+        if categoryLevels.isEmpty {
+            // Default: all levels for all categories
+            var defaultLevels: [String: Set<FactletLevel>] = [:]
+            let categoriesToSet = selectedCategories.isEmpty ? 
+                Set(FactletCategory.allCases.filter { $0 != .all }) : selectedCategories
+            for category in categoriesToSet {
+                defaultLevels[category.rawValue] = Set(FactletLevel.allCases)
+            }
+            manager.categoryLevels = defaultLevels
         } else {
-            manager.selectedLevels = selectedLevels
+            manager.categoryLevels = categoryLevels
         }
         
         // Apply refresh interval
@@ -138,6 +153,7 @@ struct OnboardingView: View {
 // MARK: - Step 1: Categories
 struct CategoriesOnboardingStep: View {
     @Binding var selectedCategories: Set<FactletCategory>
+    @Binding var categoryLevels: [String: Set<FactletLevel>]
     
     private var categories: [FactletCategory] {
         FactletCategory.allCases.filter { $0 != .all }
@@ -165,19 +181,24 @@ struct CategoriesOnboardingStep: View {
                     GridItem(.flexible(), spacing: 12),
                     GridItem(.flexible(), spacing: 12)
                 ], spacing: 12) {
-                    ForEach(categories, id: \.self) { category in
-                        OnboardingCategoryButton(
-                            category: category,
-                            isSelected: selectedCategories.contains(category),
-                            count: countForCategory(category)
-                        ) {
-                            if selectedCategories.contains(category) {
-                                selectedCategories.remove(category)
-                            } else {
-                                selectedCategories.insert(category)
+                        ForEach(categories, id: \.self) { category in
+                            OnboardingCategoryButton(
+                                category: category,
+                                isSelected: selectedCategories.contains(category),
+                                count: countForCategory(category)
+                            ) {
+                                if selectedCategories.contains(category) {
+                                    selectedCategories.remove(category)
+                                    categoryLevels.removeValue(forKey: category.rawValue)
+                                } else {
+                                    selectedCategories.insert(category)
+                                    // Initialize with all levels if not already set
+                                    if categoryLevels[category.rawValue] == nil {
+                                        categoryLevels[category.rawValue] = Set(FactletLevel.allCases)
+                                    }
+                                }
                             }
                         }
-                    }
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
@@ -193,7 +214,7 @@ struct CategoriesOnboardingStep: View {
 // MARK: - Step 2: Levels
 struct LevelsOnboardingStep: View {
     let selectedCategories: Set<FactletCategory>
-    @Binding var selectedLevels: Set<FactletLevel>
+    @Binding var categoryLevels: [String: Set<FactletLevel>]
     
     private var categories: [FactletCategory] {
         if selectedCategories.isEmpty {
@@ -211,7 +232,7 @@ struct LevelsOnboardingStep: View {
                         .foregroundColor(.black.opacity(0.85))
                         .multilineTextAlignment(.center)
                     
-                    Text("Select which difficulty levels you'd like to see for your chosen topics.")
+                    Text("Select difficulty levels for each topic. You can choose different levels for different topics.")
                         .font(.custom("TimesNewRomanPSMT", size: 16))
                         .foregroundColor(.black.opacity(0.6))
                         .multilineTextAlignment(.center)
@@ -220,18 +241,14 @@ struct LevelsOnboardingStep: View {
                 }
                 .padding(.top, 40)
                 
-                VStack(spacing: 20) {
-                    ForEach(FactletLevel.allCases, id: \.self) { level in
-                        OnboardingLevelButton(
-                            level: level,
-                            isSelected: selectedLevels.contains(level),
-                            count: countForLevel(level)
-                        ) {
-                            if selectedLevels.contains(level) {
-                                selectedLevels.remove(level)
-                            } else {
-                                selectedLevels.insert(level)
-                            }
+                VStack(spacing: 16) {
+                    ForEach(categories, id: \.self) { category in
+                        OnboardingCategoryLevelCard(
+                            category: category,
+                            selectedLevels: getLevelsForCategory(category),
+                            count: countForCategory(category)
+                        ) { level in
+                            toggleLevel(level, for: category)
                         }
                     }
                 }
@@ -241,14 +258,29 @@ struct LevelsOnboardingStep: View {
         }
     }
     
-    private func countForLevel(_ level: FactletLevel) -> Int {
-        let categoriesToCheck = selectedCategories.isEmpty ? 
-            Set(FactletCategory.allCases.filter { $0 != .all }) : selectedCategories
+    private func getLevelsForCategory(_ category: FactletCategory) -> Set<FactletLevel> {
+        categoryLevels[category.rawValue] ?? Set(FactletLevel.allCases)
+    }
+    
+    private func toggleLevel(_ level: FactletLevel, for category: FactletCategory) {
+        var levels = categoryLevels[category.rawValue] ?? Set(FactletLevel.allCases)
         
-        return FactletCollection.all.filter { factlet in
-            factlet.level == level && categoriesToCheck.contains { category in
-                category.rawValue == factlet.category
+        if levels.contains(level) {
+            levels.remove(level)
+            if levels.isEmpty {
+                levels.insert(.level1)
             }
+        } else {
+            levels.insert(level)
+        }
+        
+        categoryLevels[category.rawValue] = levels
+    }
+    
+    private func countForCategory(_ category: FactletCategory) -> Int {
+        let levels = getLevelsForCategory(category)
+        return FactletCollection.all.filter { 
+            $0.category == category.rawValue && levels.contains($0.level)
         }.count
     }
 }
@@ -479,6 +511,58 @@ struct OnboardingLevelButton: View {
                     .stroke(Color.black.opacity(isSelected ? 0.2 : 0.1), lineWidth: 1)
             )
         }
+    }
+}
+
+// MARK: - Onboarding Category Level Card
+struct OnboardingCategoryLevelCard: View {
+    let category: FactletCategory
+    let selectedLevels: Set<FactletLevel>
+    let count: Int
+    let onLevelToggle: (FactletLevel) -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(category.displayName)
+                .font(.custom("TimesNewRomanPSMT", size: 18))
+                .foregroundColor(.black.opacity(0.85))
+            
+            Text("\(count) factlets")
+                .font(.custom("TimesNewRomanPSMT", size: 13))
+                .foregroundColor(.black.opacity(0.35))
+            
+            HStack(spacing: 12) {
+                ForEach(FactletLevel.allCases, id: \.self) { level in
+                    Button(action: {
+                        onLevelToggle(level)
+                    }) {
+                        Text(level.displayName)
+                            .font(.custom("TimesNewRomanPSMT", size: 14))
+                            .foregroundColor(.black.opacity(selectedLevels.contains(level) ? 0.85 : 0.4))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(selectedLevels.contains(level) ? Color.black.opacity(0.08) : Color.clear)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.black.opacity(selectedLevels.contains(level) ? 0.2 : 0.1), lineWidth: 1)
+                            )
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.black.opacity(0.02))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color.black.opacity(0.1), lineWidth: 1)
+        )
     }
 }
 

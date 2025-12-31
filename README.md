@@ -85,7 +85,7 @@ Filter which topics appear in both the app, widgets, and notifications:
 - Nature
 - Language
 - Culture
-- Human Body
+- The Body
 - Geography
 - Technology
 
@@ -134,7 +134,7 @@ Edit `Shared/Factlets.swift` and add new factlets to the `FactletCollection.all`
 Factlet(fact: "Your amazing fact here.", category: "Category")
 ```
 
-Available categories: Science, History, Nature, Language, Culture, Human Body, Geography, Technology
+Available categories: Science, History, Nature, Language, Culture, The Body, Geography, Technology
 
 ## License
 

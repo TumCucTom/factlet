@@ -11,16 +11,14 @@ import UserNotifications
 
 // MARK: - Refresh Interval
 enum RefreshInterval: String, CaseIterable, Codable {
-    case fifteenMinutes = "15 Minutes"
-    case thirtyMinutes = "30 Minutes"
-    case hourly = "Hourly"
+    case hourly = "Every Hour"
+    case halfDay = "Half Day"
     case daily = "Daily"
     
     var timeInterval: TimeInterval {
         switch self {
-        case .fifteenMinutes: return 15 * 60
-        case .thirtyMinutes: return 30 * 60
         case .hourly: return 60 * 60
+        case .halfDay: return 12 * 60 * 60
         case .daily: return 24 * 60 * 60
         }
     }
@@ -80,7 +78,7 @@ enum FactletCategory: String, CaseIterable, Codable {
     case nature = "Nature"
     case language = "Language"
     case culture = "Culture"
-    case humanBody = "Human Body"
+    case humanBody = "The Body"
     case geography = "Geography"
     case technology = "Technology"
     
@@ -100,6 +98,7 @@ class FactletManager: ObservableObject {
     private let textColorKey = "textColor"
     private let selectedCategoriesKey = "selectedCategories"
     private let selectedLevelsKey = "selectedLevels"
+    private let categoryLevelsKey = "categoryLevels"
     private let notificationFrequencyKey = "notificationFrequency"
     private let notificationsEnabledKey = "notificationsEnabled"
     private let onboardingCompletedKey = "onboardingCompleted"
@@ -112,7 +111,8 @@ class FactletManager: ObservableObject {
     @Published var refreshInterval: RefreshInterval
     @Published var textColor: WidgetTextColor
     @Published var selectedCategories: Set<FactletCategory>
-    @Published var selectedLevels: Set<FactletLevel>
+    @Published var selectedLevels: Set<FactletLevel> // Legacy - kept for migration
+    @Published var categoryLevels: [String: Set<FactletLevel>] // Category -> Levels mapping
     @Published var notificationFrequency: NotificationFrequency
     @Published var notificationsEnabled: Bool
     @Published var onboardingCompleted: Bool
@@ -125,7 +125,16 @@ class FactletManager: ObservableObject {
            let savedInterval = RefreshInterval(rawValue: savedIntervalString) {
             self.refreshInterval = savedInterval
         } else {
-            self.refreshInterval = .hourly
+            // Migrate old values
+            if let oldInterval = defaults?.string(forKey: "refreshInterval") {
+                if oldInterval == "15 Minutes" || oldInterval == "30 Minutes" {
+                    self.refreshInterval = .hourly
+                } else {
+                    self.refreshInterval = .hourly
+                }
+            } else {
+                self.refreshInterval = .hourly
+            }
         }
         
         // Load text color
@@ -144,13 +153,32 @@ class FactletManager: ObservableObject {
             self.selectedCategories = [.all]
         }
         
-        // Load selected levels
-        if let savedLevelsData = defaults?.data(forKey: "selectedLevels"),
-           let savedLevels = try? JSONDecoder().decode(Set<FactletLevel>.self, from: savedLevelsData) {
-            self.selectedLevels = savedLevels
+        // Load category levels (per-category level selection)
+        if let savedCategoryLevelsData = defaults?.data(forKey: "categoryLevels"),
+           let savedCategoryLevels = try? JSONDecoder().decode([String: Set<FactletLevel>].self, from: savedCategoryLevelsData) {
+            self.categoryLevels = savedCategoryLevels
         } else {
-            self.selectedLevels = Set(FactletLevel.allCases) // All levels by default
+            // Migrate from old selectedLevels if exists
+            if let savedLevelsData = defaults?.data(forKey: "selectedLevels"),
+               let savedLevels = try? JSONDecoder().decode(Set<FactletLevel>.self, from: savedLevelsData) {
+                // Migrate: apply same levels to all categories
+                var migratedLevels: [String: Set<FactletLevel>] = [:]
+                for category in FactletCategory.allCases where category != .all {
+                    migratedLevels[category.rawValue] = savedLevels
+                }
+                self.categoryLevels = migratedLevels
+            } else {
+                // Default: all levels for all categories
+                var defaultLevels: [String: Set<FactletLevel>] = [:]
+                for category in FactletCategory.allCases where category != .all {
+                    defaultLevels[category.rawValue] = Set(FactletLevel.allCases)
+                }
+                self.categoryLevels = defaultLevels
+            }
         }
+        
+        // Legacy support
+        self.selectedLevels = Set(FactletLevel.allCases)
         
         // Load notification frequency
         if let savedFrequencyString = defaults?.string(forKey: "notificationFrequency"),
@@ -191,8 +219,8 @@ class FactletManager: ObservableObject {
             userDefaults.set(categoriesData, forKey: selectedCategoriesKey)
         }
         
-        if let levelsData = try? JSONEncoder().encode(selectedLevels) {
-            userDefaults.set(levelsData, forKey: selectedLevelsKey)
+        if let categoryLevelsData = try? JSONEncoder().encode(categoryLevels) {
+            userDefaults.set(categoryLevelsData, forKey: categoryLevelsKey)
         }
         
         userDefaults.set(Date(), forKey: lastUpdateKey)
@@ -202,17 +230,24 @@ class FactletManager: ObservableObject {
         var filtered = FactletCollection.all
         
         // Filter by category
-        if !selectedCategories.contains(.all) {
-            filtered = filtered.filter { factlet in
-                selectedCategories.contains { category in
-                    category.rawValue == factlet.category
-                }
-            }
+        let categoriesToCheck: Set<FactletCategory>
+        if selectedCategories.contains(.all) {
+            categoriesToCheck = Set(FactletCategory.allCases.filter { $0 != .all })
+        } else {
+            categoriesToCheck = selectedCategories
         }
         
-        // Filter by level
         filtered = filtered.filter { factlet in
-            selectedLevels.contains(factlet.level)
+            // Check if category is selected
+            let categoryMatches = categoriesToCheck.contains { category in
+                category.rawValue == factlet.category
+            }
+            
+            guard categoryMatches else { return false }
+            
+            // Check if level is selected for this category
+            let levelsForCategory = categoryLevels[factlet.category] ?? Set(FactletLevel.allCases)
+            return levelsForCategory.contains(factlet.level)
         }
         
         return filtered
@@ -273,22 +308,56 @@ class FactletManager: ObservableObject {
         return selectedCategories.contains(category)
     }
     
-    func toggleLevel(_ level: FactletLevel) {
-        if selectedLevels.contains(level) {
-            selectedLevels.remove(level)
+    func toggleLevel(_ level: FactletLevel, for category: FactletCategory) {
+        guard category != .all else { return }
+        
+        var levels = categoryLevels[category.rawValue] ?? Set(FactletLevel.allCases)
+        
+        if levels.contains(level) {
+            levels.remove(level)
             // Ensure at least one level is selected
-            if selectedLevels.isEmpty {
-                selectedLevels.insert(.level1)
+            if levels.isEmpty {
+                levels.insert(.level1)
             }
         } else {
-            selectedLevels.insert(level)
+            levels.insert(level)
         }
+        
+        categoryLevels[category.rawValue] = levels
         save()
         WidgetCenter.shared.reloadAllTimelines()
     }
     
+    func isLevelSelected(_ level: FactletLevel, for category: FactletCategory) -> Bool {
+        guard category != .all else { return false }
+        let levels = categoryLevels[category.rawValue] ?? Set(FactletLevel.allCases)
+        return levels.contains(level)
+    }
+    
+    func getLevelsForCategory(_ category: FactletCategory) -> Set<FactletLevel> {
+        guard category != .all else { return Set(FactletLevel.allCases) }
+        return categoryLevels[category.rawValue] ?? Set(FactletLevel.allCases)
+    }
+    
+    // Legacy methods for backward compatibility
+    func toggleLevel(_ level: FactletLevel) {
+        // Apply to all selected categories
+        let categoriesToUpdate = selectedCategories.contains(.all) ?
+            Set(FactletCategory.allCases.filter { $0 != .all }) : selectedCategories
+        
+        for category in categoriesToUpdate {
+            toggleLevel(level, for: category)
+        }
+    }
+    
     func isLevelSelected(_ level: FactletLevel) -> Bool {
-        return selectedLevels.contains(level)
+        // Check if level is selected in any selected category
+        let categoriesToCheck = selectedCategories.contains(.all) ?
+            Set(FactletCategory.allCases.filter { $0 != .all }) : selectedCategories
+        
+        return categoriesToCheck.contains { category in
+            isLevelSelected(level, for: category)
+        }
     }
     
     func shouldRefresh() -> Bool {

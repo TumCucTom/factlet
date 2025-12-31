@@ -126,6 +126,7 @@ struct ContentView: View {
 struct TopicsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var manager = FactletManager.shared
+    @State private var expandedCategory: FactletCategory? = nil
     
     private var categories: [FactletCategory] {
         FactletCategory.allCases
@@ -138,70 +139,43 @@ struct TopicsView: View {
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 40) {
-                        // Levels Section
-                        VStack(alignment: .leading, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("DIFFICULTY LEVEL")
-                                    .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
-                                    .kerning(2.5)
-                                    .foregroundColor(.black.opacity(0.4))
-                                
-                                Text("Choose which difficulty levels to include.")
-                                    .font(.custom("TimesNewRomanPSMT", size: 15))
-                                    .foregroundColor(.black.opacity(0.6))
-                                    .lineSpacing(4)
-                            }
-                            .padding(.horizontal, 28)
+                    VStack(alignment: .leading, spacing: 32) {
+                        // Section Header
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("FILTER BY TOPIC")
+                                .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
+                                .kerning(2.5)
+                                .foregroundColor(.black.opacity(0.4))
                             
-                            // Level Buttons
-                            HStack(spacing: 12) {
-                                ForEach(FactletLevel.allCases, id: \.self) { level in
-                                    LevelButton(
-                                        level: level,
-                                        isSelected: manager.isLevelSelected(level),
-                                        count: countForLevel(level)
-                                    ) {
-                                        manager.toggleLevel(level)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 28)
+                            Text("Choose topics and set difficulty levels for each.")
+                                .font(.custom("TimesNewRomanPSMT", size: 15))
+                                .foregroundColor(.black.opacity(0.6))
+                                .lineSpacing(4)
                         }
+                        .padding(.horizontal, 28)
                         .padding(.top, 20)
                         
-                        // Topics Section
-                        VStack(alignment: .leading, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("FILTER BY TOPIC")
-                                    .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
-                                    .kerning(2.5)
-                                    .foregroundColor(.black.opacity(0.4))
-                                
-                                Text("Choose which topics appear in the app and widget.")
-                                    .font(.custom("TimesNewRomanPSMT", size: 15))
-                                    .foregroundColor(.black.opacity(0.6))
-                                    .lineSpacing(4)
-                            }
-                            .padding(.horizontal, 28)
-                            
-                            // Category Grid
-                            LazyVGrid(columns: [
-                                GridItem(.flexible(), spacing: 12),
-                                GridItem(.flexible(), spacing: 12)
-                            ], spacing: 12) {
-                                ForEach(categories, id: \.self) { category in
-                                    TopicButton(
-                                        category: category,
-                                        isSelected: manager.isCategorySelected(category),
-                                        count: countForCategory(category)
-                                    ) {
-                                        manager.toggleCategory(category)
+                        // Category List with Levels
+                        VStack(spacing: 12) {
+                            ForEach(categories, id: \.self) { category in
+                                CategoryLevelCard(
+                                    category: category,
+                                    isSelected: manager.isCategorySelected(category),
+                                    selectedLevels: manager.getLevelsForCategory(category),
+                                    isExpanded: expandedCategory == category,
+                                    count: countForCategory(category)
+                                ) {
+                                    manager.toggleCategory(category)
+                                } onLevelToggle: { level in
+                                    manager.toggleLevel(level, for: category)
+                                } onExpandToggle: {
+                                    withAnimation {
+                                        expandedCategory = expandedCategory == category ? nil : category
                                     }
                                 }
                             }
-                            .padding(.horizontal, 24)
                         }
+                        .padding(.horizontal, 24)
                         
                         Spacer(minLength: 40)
                     }
@@ -210,7 +184,7 @@ struct TopicsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Topics")
+                    Text("Topics & Levels")
                         .font(.custom("TimesNewRomanPSMT", size: 17))
                         .foregroundColor(.black.opacity(0.85))
                 }
@@ -228,95 +202,123 @@ struct TopicsView: View {
     
     private func countForCategory(_ category: FactletCategory) -> Int {
         if category == .all {
-            return FactletCollection.all.filter { manager.selectedLevels.contains($0.level) }.count
+            return FactletCollection.all.count
         }
+        let levels = manager.getLevelsForCategory(category)
         return FactletCollection.all.filter { 
-            $0.category == category.rawValue && manager.selectedLevels.contains($0.level)
-        }.count
-    }
-    
-    private func countForLevel(_ level: FactletLevel) -> Int {
-        if manager.selectedCategories.contains(.all) {
-            return FactletCollection.all.filter { $0.level == level }.count
-        }
-        return FactletCollection.all.filter { factlet in
-            factlet.level == level && manager.selectedCategories.contains { category in
-                category.rawValue == factlet.category
-            }
+            $0.category == category.rawValue && levels.contains($0.level)
         }.count
     }
 }
 
-// MARK: - Level Button
-struct LevelButton: View {
-    let level: FactletLevel
-    let isSelected: Bool
-    let count: Int
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Text(level.displayName)
-                    .font(.custom("TimesNewRomanPSMT", size: 16))
-                    .foregroundColor(.black.opacity(isSelected ? 0.9 : 0.5))
-                
-                Text("\(count)")
-                    .font(.custom("TimesNewRomanPSMT", size: 12))
-                    .foregroundColor(.black.opacity(0.35))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isSelected ? Color.black.opacity(0.05) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.black.opacity(isSelected ? 0.15 : 0.08), lineWidth: 1)
-            )
-        }
-    }
-}
-
-// MARK: - Topic Button
-struct TopicButton: View {
+// MARK: - Category Level Card
+struct CategoryLevelCard: View {
     let category: FactletCategory
     let isSelected: Bool
+    let selectedLevels: Set<FactletLevel>
+    let isExpanded: Bool
     let count: Int
-    let action: () -> Void
+    let onToggle: () -> Void
+    let onLevelToggle: (FactletLevel) -> Void
+    let onExpandToggle: () -> Void
     
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 0) {
+            // Category Header
+            Button(action: {
+                if category != .all {
+                    onToggle()
+                }
+            }) {
                 HStack {
-                    Text(category.displayName)
-                        .font(.custom("TimesNewRomanPSMT", size: 16))
-                        .foregroundColor(.black.opacity(isSelected ? 0.9 : 0.5))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(category.displayName)
+                            .font(.custom("TimesNewRomanPSMT", size: 18))
+                            .foregroundColor(.black.opacity(isSelected ? 0.9 : 0.5))
+                        
+                        Text("\(count) factlets")
+                            .font(.custom("TimesNewRomanPSMT", size: 13))
+                            .foregroundColor(.black.opacity(0.35))
+                    }
                     
                     Spacer()
                     
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.black.opacity(0.6))
+                    if category != .all {
+                        if isSelected {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.black.opacity(0.6))
+                        }
+                        
+                        Button(action: onExpandToggle) {
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.black.opacity(0.4))
+                        }
+                        .padding(.leading, 8)
                     }
                 }
-                
-                Text("\(count) factlets")
-                    .font(.custom("TimesNewRomanPSMT", size: 12))
-                    .foregroundColor(.black.opacity(0.35))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isSelected ? Color.black.opacity(0.05) : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.black.opacity(isSelected ? 0.15 : 0.08), lineWidth: 1)
+                )
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isSelected ? Color.black.opacity(0.05) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.black.opacity(isSelected ? 0.15 : 0.08), lineWidth: 1)
-            )
+            .disabled(category == .all)
+            
+            // Levels (expanded view)
+            if isExpanded && category != .all {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color.black.opacity(0.08))
+                        .frame(height: 1)
+                        .padding(.horizontal, 20)
+                    
+                    VStack(spacing: 0) {
+                        ForEach(FactletLevel.allCases, id: \.self) { level in
+                            Button(action: {
+                                onLevelToggle(level)
+                            }) {
+                                HStack {
+                                    Text(level.displayName)
+                                        .font(.custom("TimesNewRomanPSMT", size: 16))
+                                        .foregroundColor(.black.opacity(selectedLevels.contains(level) ? 0.85 : 0.4))
+                                    
+                                    Spacer()
+                                    
+                                    if selectedLevels.contains(level) {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(.black.opacity(0.6))
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(
+                                    selectedLevels.contains(level) ? Color.black.opacity(0.03) : Color.clear
+                                )
+                            }
+                            
+                            if level != FactletLevel.allCases.last {
+                                Rectangle()
+                                    .fill(Color.black.opacity(0.05))
+                                    .frame(height: 1)
+                                    .padding(.horizontal, 20)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.black.opacity(0.02))
+                )
+            }
         }
     }
 }

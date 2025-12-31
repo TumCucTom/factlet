@@ -21,7 +21,7 @@ struct FactletTimelineProvider: TimelineProvider {
     func placeholder(in context: Context) -> FactletEntry {
         FactletEntry(
             date: Date(),
-            factlet: Factlet(fact: "Honey never spoils. Archaeologists have found 3,000-year-old honey in Egyptian tombs.", category: "Science"),
+            factlet: Factlet(fact: "Honey never spoils. Archaeologists have found 3,000-year-old honey in Egyptian tombs.", category: "Science", level: .level1),
             textColor: .dark
         )
     }
