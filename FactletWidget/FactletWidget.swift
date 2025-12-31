@@ -59,23 +59,31 @@ struct FactletWidgetEntryView: View {
     var entry: FactletEntry
     @Environment(\.widgetFamily) var family
     
+    private var backgroundColor: Color {
+        entry.textColor == .light ? .black : .clear
+    }
+    
     var body: some View {
-        switch family {
-        case .systemSmall:
-            SmallWidgetView(factlet: entry.factlet, textColor: entry.textColor)
-        case .systemMedium:
-            MediumWidgetView(factlet: entry.factlet, textColor: entry.textColor)
-        case .systemLarge:
-            LargeWidgetView(factlet: entry.factlet, textColor: entry.textColor)
-        case .accessoryCircular:
-            CircularLockScreenView(factlet: entry.factlet)
-        case .accessoryRectangular:
-            RectangularLockScreenView(factlet: entry.factlet)
-        case .accessoryInline:
-            InlineLockScreenView(factlet: entry.factlet)
-        default:
-            MediumWidgetView(factlet: entry.factlet, textColor: entry.textColor)
+        Group {
+            switch family {
+            case .systemSmall:
+                SmallWidgetView(factlet: entry.factlet, textColor: entry.textColor)
+            case .systemMedium:
+                MediumWidgetView(factlet: entry.factlet, textColor: entry.textColor)
+            case .systemLarge:
+                LargeWidgetView(factlet: entry.factlet, textColor: entry.textColor)
+            case .accessoryCircular:
+                CircularLockScreenView(factlet: entry.factlet)
+            case .accessoryRectangular:
+                RectangularLockScreenView(factlet: entry.factlet)
+            case .accessoryInline:
+                InlineLockScreenView(factlet: entry.factlet)
+            default:
+                MediumWidgetView(factlet: entry.factlet, textColor: entry.textColor)
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(backgroundColor)
     }
 }
 
@@ -88,8 +96,12 @@ struct SmallWidgetView: View {
         textColor == .light ? .white : .black
     }
     
+    private var backgroundColor: Color {
+        textColor == .light ? .black : .clear
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 8) {
             Text(factlet.category.uppercased())
                 .font(.custom("TimesNewRomanPS-BoldMT", size: 8))
                 .kerning(1.5)
@@ -98,11 +110,13 @@ struct SmallWidgetView: View {
             Text(factlet.fact)
                 .font(.custom("TimesNewRomanPSMT", size: 13))
                 .lineSpacing(3)
+                .multilineTextAlignment(.center)
                 .foregroundColor(primaryColor.opacity(0.95))
                 .lineLimit(6)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(14)
-        .background(Color.clear)
+        .background(backgroundColor)
     }
 }
 
@@ -115,34 +129,27 @@ struct MediumWidgetView: View {
         textColor == .light ? .white : .black
     }
     
+    private var backgroundColor: Color {
+        textColor == .light ? .black : .clear
+    }
+    
     var body: some View {
-        HStack(spacing: 16) {
-            // Left accent line
-            Rectangle()
-                .fill(primaryColor.opacity(0.25))
-                .frame(width: 1)
-                .padding(.vertical, 12)
+        VStack(spacing: 10) {
+            Text(factlet.category.uppercased())
+                .font(.custom("TimesNewRomanPS-BoldMT", size: 9))
+                .kerning(2)
+                .foregroundColor(primaryColor.opacity(0.5))
             
-            VStack(alignment: .leading, spacing: 8) {
-                Text(factlet.category.uppercased())
-                    .font(.custom("TimesNewRomanPS-BoldMT", size: 9))
-                    .kerning(2)
-                    .foregroundColor(primaryColor.opacity(0.5))
-                
-                Text(factlet.fact)
-                    .font(.custom("TimesNewRomanPSMT", size: 15))
-                    .lineSpacing(5)
-                    .foregroundColor(primaryColor.opacity(0.95))
-                    .lineLimit(4)
-                
-                Spacer()
-            }
-            .padding(.vertical, 12)
-            
-            Spacer()
+            Text(factlet.fact)
+                .font(.custom("TimesNewRomanPSMT", size: 15))
+                .lineSpacing(5)
+                .multilineTextAlignment(.center)
+                .foregroundColor(primaryColor.opacity(0.95))
+                .lineLimit(4)
         }
-        .padding(.leading, 16)
-        .background(Color.clear)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(16)
+        .background(backgroundColor)
     }
 }
 
@@ -155,8 +162,12 @@ struct LargeWidgetView: View {
         textColor == .light ? .white : .black
     }
     
+    private var backgroundColor: Color {
+        textColor == .light ? .black : .clear
+    }
+    
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Spacer()
             
             Text(factlet.category.uppercased())
@@ -171,10 +182,6 @@ struct LargeWidgetView: View {
                 .foregroundColor(primaryColor.opacity(0.95))
                 .padding(.horizontal, 20)
             
-            Rectangle()
-                .fill(primaryColor.opacity(0.25))
-                .frame(width: 30, height: 1)
-            
             Spacer()
             
             // Branding
@@ -183,8 +190,9 @@ struct LargeWidgetView: View {
                 .foregroundColor(primaryColor.opacity(0.35))
                 .padding(.bottom, 12)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(16)
-        .background(Color.clear)
+        .background(backgroundColor)
     }
 }
 
@@ -235,7 +243,7 @@ struct FactletWidget: Widget {
         StaticConfiguration(kind: kind, provider: FactletTimelineProvider()) { entry in
             FactletWidgetEntryView(entry: entry)
                 .containerBackground(for: .widget) {
-                    Color.clear
+                    entry.textColor == .light ? Color.black : Color.clear
                 }
         }
         .configurationDisplayName("Factlet")
