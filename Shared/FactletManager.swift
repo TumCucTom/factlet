@@ -99,6 +99,7 @@ class FactletManager: ObservableObject {
     private let refreshIntervalKey = "refreshInterval"
     private let textColorKey = "textColor"
     private let selectedCategoriesKey = "selectedCategories"
+    private let selectedLevelsKey = "selectedLevels"
     private let notificationFrequencyKey = "notificationFrequency"
     private let notificationsEnabledKey = "notificationsEnabled"
     
@@ -110,6 +111,7 @@ class FactletManager: ObservableObject {
     @Published var refreshInterval: RefreshInterval
     @Published var textColor: WidgetTextColor
     @Published var selectedCategories: Set<FactletCategory>
+    @Published var selectedLevels: Set<FactletLevel>
     @Published var notificationFrequency: NotificationFrequency
     @Published var notificationsEnabled: Bool
     
@@ -138,6 +140,14 @@ class FactletManager: ObservableObject {
             self.selectedCategories = savedCategories
         } else {
             self.selectedCategories = [.all]
+        }
+        
+        // Load selected levels
+        if let savedLevelsData = defaults?.data(forKey: "selectedLevels"),
+           let savedLevels = try? JSONDecoder().decode(Set<FactletLevel>.self, from: savedLevelsData) {
+            self.selectedLevels = savedLevels
+        } else {
+            self.selectedLevels = Set(FactletLevel.allCases) // All levels by default
         }
         
         // Load notification frequency
@@ -176,18 +186,31 @@ class FactletManager: ObservableObject {
             userDefaults.set(categoriesData, forKey: selectedCategoriesKey)
         }
         
+        if let levelsData = try? JSONEncoder().encode(selectedLevels) {
+            userDefaults.set(levelsData, forKey: selectedLevelsKey)
+        }
+        
         userDefaults.set(Date(), forKey: lastUpdateKey)
     }
     
     func getFilteredFactlets() -> [Factlet] {
-        if selectedCategories.contains(.all) {
-            return FactletCollection.all
-        }
-        return FactletCollection.all.filter { factlet in
-            selectedCategories.contains { category in
-                category.rawValue == factlet.category
+        var filtered = FactletCollection.all
+        
+        // Filter by category
+        if !selectedCategories.contains(.all) {
+            filtered = filtered.filter { factlet in
+                selectedCategories.contains { category in
+                    category.rawValue == factlet.category
+                }
             }
         }
+        
+        // Filter by level
+        filtered = filtered.filter { factlet in
+            selectedLevels.contains(factlet.level)
+        }
+        
+        return filtered
     }
     
     func getRandomFilteredFactlet() -> Factlet {
@@ -243,6 +266,24 @@ class FactletManager: ObservableObject {
     
     func isCategorySelected(_ category: FactletCategory) -> Bool {
         return selectedCategories.contains(category)
+    }
+    
+    func toggleLevel(_ level: FactletLevel) {
+        if selectedLevels.contains(level) {
+            selectedLevels.remove(level)
+            // Ensure at least one level is selected
+            if selectedLevels.isEmpty {
+                selectedLevels.insert(.level1)
+            }
+        } else {
+            selectedLevels.insert(level)
+        }
+        save()
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+    
+    func isLevelSelected(_ level: FactletLevel) -> Bool {
+        return selectedLevels.contains(level)
     }
     
     func shouldRefresh() -> Bool {

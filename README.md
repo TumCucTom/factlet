@@ -76,6 +76,14 @@ Filter which topics appear in both the app, widgets, and notifications:
 - Geography
 - Technology
 
+### Difficulty Levels
+Each category has factlets organized into 3 difficulty levels:
+- **Level 1** - Basic/common knowledge factlets
+- **Level 2** - Intermediate factlets
+- **Level 3** - Advanced/obscure factlets
+
+You can select multiple levels to customize your factlet experience. All levels are selected by default.
+
 ## Design Philosophy
 
 Factlet follows a minimalistic design approach inspired by the Vocabulary app:

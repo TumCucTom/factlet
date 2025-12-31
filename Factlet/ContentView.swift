@@ -138,38 +138,70 @@ struct TopicsView: View {
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 32) {
-                        // Section Header
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("FILTER BY TOPIC")
-                                .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
-                                .kerning(2.5)
-                                .foregroundColor(.black.opacity(0.4))
+                    VStack(alignment: .leading, spacing: 40) {
+                        // Levels Section
+                        VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("DIFFICULTY LEVEL")
+                                    .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
+                                    .kerning(2.5)
+                                    .foregroundColor(.black.opacity(0.4))
+                                
+                                Text("Choose which difficulty levels to include.")
+                                    .font(.custom("TimesNewRomanPSMT", size: 15))
+                                    .foregroundColor(.black.opacity(0.6))
+                                    .lineSpacing(4)
+                            }
+                            .padding(.horizontal, 28)
                             
-                            Text("Choose which topics appear in the app and widget.")
-                                .font(.custom("TimesNewRomanPSMT", size: 15))
-                                .foregroundColor(.black.opacity(0.6))
-                                .lineSpacing(4)
-                        }
-                        .padding(.horizontal, 28)
-                        .padding(.top, 20)
-                        
-                        // Category Grid
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 12),
-                            GridItem(.flexible(), spacing: 12)
-                        ], spacing: 12) {
-                            ForEach(categories, id: \.self) { category in
-                                TopicButton(
-                                    category: category,
-                                    isSelected: manager.isCategorySelected(category),
-                                    count: countForCategory(category)
-                                ) {
-                                    manager.toggleCategory(category)
+                            // Level Buttons
+                            HStack(spacing: 12) {
+                                ForEach(FactletLevel.allCases, id: \.self) { level in
+                                    LevelButton(
+                                        level: level,
+                                        isSelected: manager.isLevelSelected(level),
+                                        count: countForLevel(level)
+                                    ) {
+                                        manager.toggleLevel(level)
+                                    }
                                 }
                             }
+                            .padding(.horizontal, 28)
                         }
-                        .padding(.horizontal, 24)
+                        .padding(.top, 20)
+                        
+                        // Topics Section
+                        VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("FILTER BY TOPIC")
+                                    .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
+                                    .kerning(2.5)
+                                    .foregroundColor(.black.opacity(0.4))
+                                
+                                Text("Choose which topics appear in the app and widget.")
+                                    .font(.custom("TimesNewRomanPSMT", size: 15))
+                                    .foregroundColor(.black.opacity(0.6))
+                                    .lineSpacing(4)
+                            }
+                            .padding(.horizontal, 28)
+                            
+                            // Category Grid
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12)
+                            ], spacing: 12) {
+                                ForEach(categories, id: \.self) { category in
+                                    TopicButton(
+                                        category: category,
+                                        isSelected: manager.isCategorySelected(category),
+                                        count: countForCategory(category)
+                                    ) {
+                                        manager.toggleCategory(category)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                        }
                         
                         Spacer(minLength: 40)
                     }
@@ -196,9 +228,54 @@ struct TopicsView: View {
     
     private func countForCategory(_ category: FactletCategory) -> Int {
         if category == .all {
-            return FactletCollection.all.count
+            return FactletCollection.all.filter { manager.selectedLevels.contains($0.level) }.count
         }
-        return FactletCollection.all.filter { $0.category == category.rawValue }.count
+        return FactletCollection.all.filter { 
+            $0.category == category.rawValue && manager.selectedLevels.contains($0.level)
+        }.count
+    }
+    
+    private func countForLevel(_ level: FactletLevel) -> Int {
+        if manager.selectedCategories.contains(.all) {
+            return FactletCollection.all.filter { $0.level == level }.count
+        }
+        return FactletCollection.all.filter { factlet in
+            factlet.level == level && manager.selectedCategories.contains { category in
+                category.rawValue == factlet.category
+            }
+        }.count
+    }
+}
+
+// MARK: - Level Button
+struct LevelButton: View {
+    let level: FactletLevel
+    let isSelected: Bool
+    let count: Int
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Text(level.displayName)
+                    .font(.custom("TimesNewRomanPSMT", size: 16))
+                    .foregroundColor(.black.opacity(isSelected ? 0.9 : 0.5))
+                
+                Text("\(count)")
+                    .font(.custom("TimesNewRomanPSMT", size: 12))
+                    .foregroundColor(.black.opacity(0.35))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isSelected ? Color.black.opacity(0.05) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.black.opacity(isSelected ? 0.15 : 0.08), lineWidth: 1)
+            )
+        }
     }
 }
 
