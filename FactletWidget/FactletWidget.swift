@@ -102,6 +102,7 @@ struct SmallWidgetView: View {
                 .lineLimit(6)
         }
         .padding(14)
+        .background(Color.clear)
     }
 }
 
@@ -141,6 +142,7 @@ struct MediumWidgetView: View {
             Spacer()
         }
         .padding(.leading, 16)
+        .background(Color.clear)
     }
 }
 
@@ -182,6 +184,7 @@ struct LargeWidgetView: View {
                 .padding(.bottom, 12)
         }
         .padding(16)
+        .background(Color.clear)
     }
 }
 
@@ -231,7 +234,9 @@ struct FactletWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: FactletTimelineProvider()) { entry in
             FactletWidgetEntryView(entry: entry)
-                .containerBackground(.clear, for: .widget)
+                .containerBackground(for: .widget) {
+                    Color.clear
+                }
         }
         .configurationDisplayName("Factlet")
         .description("A small piece of knowledge, beautifully presented.")

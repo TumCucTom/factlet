@@ -10,7 +10,6 @@
 		1A0000010000000000000001 /* FactletApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000020000000000000001 /* FactletApp.swift */; };
 		1A0000030000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000040000000000000001 /* ContentView.swift */; };
 		1A0000050000000000000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000060000000000000001 /* SettingsView.swift */; };
-		1A0000570000000000000001 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000580000000000000001 /* OnboardingView.swift */; };
 		1A0000070000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0000080000000000000001 /* Assets.xcassets */; };
 		1A0000090000000000000001 /* Factlets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000100000000000000001 /* Factlets.swift */; };
 		1A0000110000000000000001 /* FactletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000120000000000000001 /* FactletManager.swift */; };
@@ -21,6 +20,7 @@
 		1A0000210000000000000001 /* FactletWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1A0000220000000000000001 /* FactletWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1A0000230000000000000001 /* Factlets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000100000000000000001 /* Factlets.swift */; };
 		1A0000240000000000000001 /* FactletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000120000000000000001 /* FactletManager.swift */; };
+		1A0000570000000000000001 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000580000000000000001 /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,7 +51,6 @@
 		1A0000020000000000000001 /* FactletApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FactletApp.swift; sourceTree = "<group>"; };
 		1A0000040000000000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1A0000060000000000000001 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		1A0000580000000000000001 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		1A0000080000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A0000100000000000000001 /* Factlets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Factlets.swift; sourceTree = "<group>"; };
 		1A0000120000000000000001 /* FactletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FactletManager.swift; sourceTree = "<group>"; };
@@ -65,6 +64,7 @@
 		1A0000310000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1A0000320000000000000001 /* Factlet.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Factlet.entitlements; sourceTree = "<group>"; };
 		1A0000330000000000000001 /* FactletWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FactletWidgetExtension.entitlements; sourceTree = "<group>"; };
+		1A0000580000000000000001 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -469,7 +469,7 @@
 				CODE_SIGN_ENTITLEMENTS = FactletWidget/FactletWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = FUS43G654Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FactletWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Factlet Widget";
@@ -497,7 +497,7 @@
 				CODE_SIGN_ENTITLEMENTS = FactletWidget/FactletWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = FUS43G654Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FactletWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Factlet Widget";
