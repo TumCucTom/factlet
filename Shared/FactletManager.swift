@@ -7,6 +7,7 @@
 
 import Foundation
 import WidgetKit
+import UserNotifications
 
 // MARK: - Refresh Interval
 enum RefreshInterval: String, CaseIterable, Codable {
@@ -20,6 +21,31 @@ enum RefreshInterval: String, CaseIterable, Codable {
         case .fifteenMinutes: return 15 * 60
         case .thirtyMinutes: return 30 * 60
         case .hourly: return 60 * 60
+        case .daily: return 24 * 60 * 60
+        }
+    }
+    
+    var displayName: String {
+        return rawValue
+    }
+}
+
+// MARK: - Notification Frequency
+enum NotificationFrequency: String, CaseIterable, Codable {
+    case off = "Off"
+    case hourly = "Hourly"
+    case everyThreeHours = "Every 3 Hours"
+    case everySixHours = "Every 6 Hours"
+    case twiceDaily = "Twice Daily"
+    case daily = "Daily"
+    
+    var timeInterval: TimeInterval? {
+        switch self {
+        case .off: return nil
+        case .hourly: return 60 * 60
+        case .everyThreeHours: return 3 * 60 * 60
+        case .everySixHours: return 6 * 60 * 60
+        case .twiceDaily: return 12 * 60 * 60
         case .daily: return 24 * 60 * 60
         }
     }
@@ -73,6 +99,8 @@ class FactletManager: ObservableObject {
     private let refreshIntervalKey = "refreshInterval"
     private let textColorKey = "textColor"
     private let selectedCategoriesKey = "selectedCategories"
+    private let notificationFrequencyKey = "notificationFrequency"
+    private let notificationsEnabledKey = "notificationsEnabled"
     
     private var userDefaults: UserDefaults? {
         UserDefaults(suiteName: suiteName)
@@ -82,6 +110,8 @@ class FactletManager: ObservableObject {
     @Published var refreshInterval: RefreshInterval
     @Published var textColor: WidgetTextColor
     @Published var selectedCategories: Set<FactletCategory>
+    @Published var notificationFrequency: NotificationFrequency
+    @Published var notificationsEnabled: Bool
     
     private init() {
         let defaults = UserDefaults(suiteName: "group.com.factlet.app")
@@ -110,6 +140,17 @@ class FactletManager: ObservableObject {
             self.selectedCategories = [.all]
         }
         
+        // Load notification frequency
+        if let savedFrequencyString = defaults?.string(forKey: "notificationFrequency"),
+           let savedFrequency = NotificationFrequency(rawValue: savedFrequencyString) {
+            self.notificationFrequency = savedFrequency
+        } else {
+            self.notificationFrequency = .off
+        }
+        
+        // Load notifications enabled state
+        self.notificationsEnabled = defaults?.bool(forKey: "notificationsEnabled") ?? false
+        
         // Load saved factlet or get a new one
         if let data = defaults?.data(forKey: "currentFactlet"),
            let factlet = try? JSONDecoder().decode(Factlet.self, from: data) {
@@ -128,6 +169,8 @@ class FactletManager: ObservableObject {
         }
         userDefaults.set(refreshInterval.rawValue, forKey: refreshIntervalKey)
         userDefaults.set(textColor.rawValue, forKey: textColorKey)
+        userDefaults.set(notificationFrequency.rawValue, forKey: notificationFrequencyKey)
+        userDefaults.set(notificationsEnabled, forKey: notificationsEnabledKey)
         
         if let categoriesData = try? JSONEncoder().encode(selectedCategories) {
             userDefaults.set(categoriesData, forKey: selectedCategoriesKey)
@@ -147,19 +190,23 @@ class FactletManager: ObservableObject {
         }
     }
     
-    func refreshFactlet() {
+    func getRandomFilteredFactlet() -> Factlet {
         let filtered = getFilteredFactlets()
         if filtered.isEmpty {
-            currentFactlet = FactletCollection.random()
+            return FactletCollection.random()
         } else if filtered.count == 1 {
-            currentFactlet = filtered[0]
+            return filtered[0]
         } else {
             var newFactlet = filtered.randomElement() ?? FactletCollection.random()
             while newFactlet.id == currentFactlet.id && filtered.count > 1 {
                 newFactlet = filtered.randomElement() ?? FactletCollection.random()
             }
-            currentFactlet = newFactlet
+            return newFactlet
         }
+    }
+    
+    func refreshFactlet() {
+        currentFactlet = getRandomFilteredFactlet()
         save()
         WidgetCenter.shared.reloadAllTimelines()
     }
@@ -209,6 +256,88 @@ class FactletManager: ObservableObject {
         if shouldRefresh() {
             refreshFactlet()
         }
+    }
+    
+    // MARK: - Notification Methods
+    
+    func requestNotificationPermission(completion: @escaping (Bool) -> Void) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            DispatchQueue.main.async {
+                self.notificationsEnabled = granted
+                self.save()
+                if granted {
+                    self.scheduleNotifications()
+                }
+                completion(granted)
+            }
+        }
+    }
+    
+    func checkNotificationPermission(completion: @escaping (Bool) -> Void) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                let isAuthorized = settings.authorizationStatus == .authorized
+                completion(isAuthorized)
+            }
+        }
+    }
+    
+    func setNotificationFrequency(_ frequency: NotificationFrequency) {
+        notificationFrequency = frequency
+        save()
+        
+        if frequency == .off {
+            cancelAllNotifications()
+        } else {
+            scheduleNotifications()
+        }
+    }
+    
+    func scheduleNotifications() {
+        // Cancel existing notifications first
+        cancelAllNotifications()
+        
+        guard notificationFrequency != .off,
+              let interval = notificationFrequency.timeInterval else {
+            return
+        }
+        
+        // Schedule multiple notifications in advance (iOS limits to 64)
+        let maxNotifications = 60
+        let filteredFactlets = getFilteredFactlets()
+        
+        for i in 0..<maxNotifications {
+            let factlet = filteredFactlets.randomElement() ?? FactletCollection.random()
+            let triggerDate = Date().addingTimeInterval(interval * Double(i + 1))
+            
+            let content = UNMutableNotificationContent()
+            content.title = factlet.category
+            content.body = factlet.fact
+            content.sound = .default
+            content.userInfo = ["factletId": factlet.id.uuidString]
+            
+            let trigger = UNTimeIntervalNotificationTrigger(
+                timeInterval: interval * Double(i + 1),
+                repeats: false
+            )
+            
+            let request = UNNotificationRequest(
+                identifier: "factlet-\(i)",
+                content: content,
+                trigger: trigger
+            )
+            
+            UNUserNotificationCenter.current().add(request)
+        }
+    }
+    
+    func cancelAllNotifications() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+    
+    func handleNotificationReceived() {
+        // When notification is tapped, refresh the factlet and widget
+        refreshFactlet()
     }
     
     // MARK: - Static methods for widget use

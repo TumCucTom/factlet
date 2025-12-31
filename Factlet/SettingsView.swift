@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  Factlet
 //
-//  Settings for refresh interval and widget appearance
+//  Settings for refresh interval, widget appearance, and notifications
 //
 
 import SwiftUI
@@ -10,6 +10,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var manager = FactletManager.shared
+    @State private var showNotificationAlert = false
+    @State private var notificationPermissionGranted = false
     
     var body: some View {
         NavigationView {
@@ -18,7 +20,69 @@ struct SettingsView: View {
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 40) {
+                    VStack(alignment: .leading, spacing: 36) {
+                        // Notifications Section
+                        VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("NOTIFICATIONS")
+                                    .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
+                                    .kerning(2.5)
+                                    .foregroundColor(.black.opacity(0.4))
+                                
+                                Text("Receive factlets as notifications. Also updates the widget.")
+                                    .font(.custom("TimesNewRomanPSMT", size: 15))
+                                    .foregroundColor(.black.opacity(0.6))
+                                    .lineSpacing(4)
+                            }
+                            .padding(.horizontal, 28)
+                            
+                            // Notification Frequency Options
+                            VStack(spacing: 0) {
+                                ForEach(NotificationFrequency.allCases, id: \.self) { frequency in
+                                    Button(action: {
+                                        handleNotificationFrequencyChange(frequency)
+                                    }) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(frequency.displayName)
+                                                    .font(.custom("TimesNewRomanPSMT", size: 18))
+                                                    .foregroundColor(.black.opacity(0.85))
+                                                
+                                                if frequency != .off {
+                                                    Text(frequencyDescription(frequency))
+                                                        .font(.custom("TimesNewRomanPSMT", size: 12))
+                                                        .foregroundColor(.black.opacity(0.4))
+                                                }
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            if manager.notificationFrequency == frequency {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 14, weight: .medium))
+                                                    .foregroundColor(.black.opacity(0.6))
+                                            }
+                                        }
+                                        .padding(.horizontal, 28)
+                                        .padding(.vertical, 16)
+                                        .background(
+                                            manager.notificationFrequency == frequency
+                                                ? Color.black.opacity(0.03)
+                                                : Color.clear
+                                        )
+                                    }
+                                    
+                                    if frequency != NotificationFrequency.allCases.last {
+                                        Rectangle()
+                                            .fill(Color.black.opacity(0.08))
+                                            .frame(height: 1)
+                                            .padding(.horizontal, 28)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.top, 20)
+                        
                         // Widget Text Color Section
                         VStack(alignment: .leading, spacing: 16) {
                             VStack(alignment: .leading, spacing: 12) {
@@ -52,17 +116,16 @@ struct SettingsView: View {
                             }
                             .padding(.horizontal, 28)
                         }
-                        .padding(.top, 20)
                         
-                        // Refresh Interval Section
+                        // Widget Refresh Interval Section
                         VStack(alignment: .leading, spacing: 16) {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("REFRESH INTERVAL")
+                                Text("WIDGET REFRESH")
                                     .font(.custom("TimesNewRomanPS-BoldMT", size: 11))
                                     .kerning(2.5)
                                     .foregroundColor(.black.opacity(0.4))
                                 
-                                Text("Choose how often the factlet changes.")
+                                Text("How often the widget refreshes automatically.")
                                     .font(.custom("TimesNewRomanPSMT", size: 15))
                                     .foregroundColor(.black.opacity(0.6))
                                     .lineSpacing(4)
@@ -107,7 +170,7 @@ struct SettingsView: View {
                             }
                         }
                         
-                        Spacer(minLength: 60)
+                        Spacer(minLength: 40)
                         
                         // About
                         VStack(spacing: 8) {
@@ -142,6 +205,60 @@ struct SettingsView: View {
                     .foregroundColor(.black.opacity(0.6))
                 }
             }
+            .alert("Enable Notifications", isPresented: $showNotificationAlert) {
+                Button("Open Settings") {
+                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(settingsURL)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    manager.setNotificationFrequency(.off)
+                }
+            } message: {
+                Text("Please enable notifications in Settings to receive factlets.")
+            }
+            .onAppear {
+                checkNotificationStatus()
+            }
+        }
+    }
+    
+    private func handleNotificationFrequencyChange(_ frequency: NotificationFrequency) {
+        if frequency == .off {
+            manager.setNotificationFrequency(.off)
+        } else {
+            // Check if we have permission
+            manager.checkNotificationPermission { granted in
+                if granted {
+                    manager.setNotificationFrequency(frequency)
+                } else {
+                    // Request permission
+                    manager.requestNotificationPermission { granted in
+                        if granted {
+                            manager.setNotificationFrequency(frequency)
+                        } else {
+                            showNotificationAlert = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func checkNotificationStatus() {
+        manager.checkNotificationPermission { granted in
+            notificationPermissionGranted = granted
+        }
+    }
+    
+    private func frequencyDescription(_ frequency: NotificationFrequency) -> String {
+        switch frequency {
+        case .off: return ""
+        case .hourly: return "~24 factlets per day"
+        case .everyThreeHours: return "~8 factlets per day"
+        case .everySixHours: return "~4 factlets per day"
+        case .twiceDaily: return "Morning & evening"
+        case .daily: return "Once per day"
         }
     }
 }

@@ -1,9 +1,10 @@
 # Factlet
 
-A minimalistic iOS app that displays general knowledge factlets on your home screen and lock screen.
+A minimalistic iOS app that displays general knowledge factlets on your home screen, lock screen, and via notifications.
 
 ## Features
 
+- **Notifications** - Receive factlets as push notifications at your chosen frequency
 - **Transparent Widget** - Widgets have transparent backgrounds to blend with your wallpaper
 - **Light/Dark Text** - Choose white or black text to match your wallpaper
 - **Topic Filtering** - Filter factlets by category (Science, History, Nature, etc.)
@@ -32,6 +33,20 @@ The app uses an App Group (`group.com.factlet.app`) to share data between the ma
 1. Enable App Groups capability for both targets
 2. Use the same App Group identifier in both entitlements files
 
+## Notifications
+
+Factlet can send you factlets as notifications throughout the day. When you tap a notification, the widget also updates with that factlet.
+
+### Notification Frequencies
+- **Off** - No notifications
+- **Hourly** - ~24 factlets per day
+- **Every 3 Hours** - ~8 factlets per day
+- **Every 6 Hours** - ~4 factlets per day
+- **Twice Daily** - Morning & evening
+- **Daily** - Once per day
+
+Configure in Settings within the app.
+
 ## Widget Features
 
 ### Transparent Background
@@ -50,7 +65,7 @@ Configure in Settings within the app.
 - **Lock Screen** - Circular, rectangular, and inline variants
 
 ### Topic Filtering
-Filter which topics appear in both the app and widgets:
+Filter which topics appear in both the app, widgets, and notifications:
 - All (default)
 - Science
 - History
@@ -76,9 +91,9 @@ Factlet follows a minimalistic design approach inspired by the Vocabulary app:
 Factlet/
 ├── Factlet.xcodeproj/        # Xcode project file
 ├── Factlet/                   # Main app target
-│   ├── FactletApp.swift      # App entry point
+│   ├── FactletApp.swift      # App entry point + notification delegate
 │   ├── ContentView.swift     # Main factlet display + Topics sheet
-│   ├── SettingsView.swift    # Refresh interval + text color settings
+│   ├── SettingsView.swift    # Notifications, text color, refresh settings
 │   ├── Assets.xcassets/      # App assets
 │   └── Info.plist
 ├── FactletWidget/            # Widget extension target
@@ -87,7 +102,7 @@ Factlet/
 │   └── Info.plist
 └── Shared/                   # Shared code
     ├── Factlets.swift        # Data model and factlet collection
-    └── FactletManager.swift  # State management + categories
+    └── FactletManager.swift  # State, categories, notifications
 ```
 
 ## Adding More Factlets
