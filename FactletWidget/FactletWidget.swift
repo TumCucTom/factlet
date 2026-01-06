@@ -39,17 +39,34 @@ struct FactletTimelineProvider: TimelineProvider {
         let currentDate = Date()
         let refreshInterval = FactletManager.getRefreshInterval()
         
-        // Create an entry for now
-        let entry = FactletEntry(
-            date: currentDate,
-            factlet: FactletManager.getCurrentFactlet(),
-            textColor: FactletManager.getTextColor()
-        )
+        // Always read fresh data from UserDefaults to ensure lockscreen widgets get updates
+        let factlet = FactletManager.getCurrentFactlet()
+        let textColor = FactletManager.getTextColor()
         
-        // Next refresh time
+        // Calculate next refresh time
         let nextRefresh = currentDate.addingTimeInterval(refreshInterval.timeInterval)
         
-        let timeline = Timeline(entries: [entry], policy: .after(nextRefresh))
+        // Create entry for immediate display
+        let entry = FactletEntry(
+            date: currentDate,
+            factlet: factlet,
+            textColor: textColor
+        )
+        
+        // For lockscreen widgets, use .atEnd with a future entry to trigger reload
+        // This is more reliable than .after() for accessory widgets
+        // Create a placeholder entry at refresh time to trigger timeline reload
+        let refreshTriggerEntry = FactletEntry(
+            date: nextRefresh,
+            factlet: factlet,
+            textColor: textColor
+        )
+        
+        // Use .atEnd so timeline reloads when refreshTriggerEntry date passes
+        // This ensures lockscreen widgets update at the scheduled time
+        // For immediate updates via reloadAllTimelines(), the entry with currentDate
+        // will be used and getTimeline will be called again with fresh data
+        let timeline = Timeline(entries: [entry, refreshTriggerEntry], policy: .atEnd)
         completion(timeline)
     }
 }

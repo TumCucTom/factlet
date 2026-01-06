@@ -271,7 +271,11 @@ class FactletManager: ObservableObject {
     func refreshFactlet() {
         currentFactlet = getRandomFilteredFactlet()
         save()
-        WidgetCenter.shared.reloadAllTimelines()
+        // Reload timelines after a brief delay to ensure UserDefaults sync completes
+        // This helps lockscreen widgets get the updated data
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
     
     func setRefreshInterval(_ interval: RefreshInterval) {
