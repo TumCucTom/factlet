@@ -38,9 +38,37 @@ struct FactletTimelineProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<FactletEntry>) -> Void) {
         let currentDate = Date()
         let refreshInterval = FactletManager.getRefreshInterval()
+        let suiteName = "group.com.factlet.app"
+        let userDefaults = UserDefaults(suiteName: suiteName)
         
-        // Always read fresh data from UserDefaults to ensure lockscreen widgets get updates
-        let factlet = FactletManager.getCurrentFactlet()
+        // Check if a refresh is needed
+        let lastUpdateKey = "lastUpdate"
+        var shouldRefresh = false
+        if let lastUpdate = userDefaults?.object(forKey: lastUpdateKey) as? Date {
+            shouldRefresh = currentDate.timeIntervalSince(lastUpdate) >= refreshInterval.timeInterval
+        } else {
+            shouldRefresh = true
+        }
+        
+        // Get or refresh the factlet
+        var factlet: Factlet
+        if shouldRefresh {
+            // Refresh needed - get a new random factlet
+            // Note: This uses a simple random selection. For filtered factlets,
+            // the app should refresh when opened, but this ensures the widget
+            // updates on schedule even if the app isn't running
+            factlet = FactletCollection.random()
+            
+            // Save the new factlet to UserDefaults
+            if let data = try? JSONEncoder().encode(factlet) {
+                userDefaults?.set(data, forKey: "currentFactlet")
+            }
+            userDefaults?.set(currentDate, forKey: lastUpdateKey)
+        } else {
+            // No refresh needed - use existing factlet
+            factlet = FactletManager.getCurrentFactlet()
+        }
+        
         let textColor = FactletManager.getTextColor()
         
         // Calculate next refresh time
@@ -64,8 +92,7 @@ struct FactletTimelineProvider: TimelineProvider {
         
         // Use .atEnd so timeline reloads when refreshTriggerEntry date passes
         // This ensures lockscreen widgets update at the scheduled time
-        // For immediate updates via reloadAllTimelines(), the entry with currentDate
-        // will be used and getTimeline will be called again with fresh data
+        // When it reloads, shouldRefresh will be true and a new factlet will be selected
         let timeline = Timeline(entries: [entry, refreshTriggerEntry], policy: .atEnd)
         completion(timeline)
     }
